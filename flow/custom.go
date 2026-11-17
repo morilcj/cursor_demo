@@ -6,10 +6,10 @@ import "strings"
 // and is immediately available to every pipeline, with no engine changes.
 // Copy this pattern to add your own stage.
 func init() {
-	Must(Default.Register("rot13", Simple(rot13)))
+	Must(Default.Register("rot13", Simple(rot13Encode)))
 }
 
-func rot13(text string) string {
+func rot13Encode(text string) string {
 	return strings.Map(func(r rune) rune {
 		switch {
 		case r >= 'a' && r <= 'z':

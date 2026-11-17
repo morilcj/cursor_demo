@@ -70,7 +70,7 @@ stages, a stage argument cannot contain a comma.
 
 ```go
 func init() {
-	Must(Default.Register("rot13", Simple(rot13)))
+	Must(Default.Register("rot13", Simple(rot13Encode)))
 }
 ```
 

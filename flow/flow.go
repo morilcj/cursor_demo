@@ -12,7 +12,9 @@ import (
 	"strings"
 )
 
-// LineFunc transforms one line into one line.
+// LineFunc transforms one line into one line. PerLine lifts a LineFunc into
+// a Stage that applies it to the whole stream and reports which line failed,
+// so simple stages such as upper do not have to write the loop themselves.
 type LineFunc func(string) (string, error)
 
 // Stage transforms a whole stream of lines.
