@@ -1,10 +1,10 @@
 # flow
 
-A tiny, extensible text pipeline: about 400 lines of dependency-free Go code.
+一个简洁、可扩展的文本流水线：约 400 行无第三方依赖的 Go 代码。
 
-`flow` reads lines from stdin and sends them through an ordered chain of
-named stages. Stages live in a registry, so a new step is added by
-registering a function — the engine itself never changes.
+`flow` 从 stdin 按行读取，按顺序经过一串已注册的 stage，再把结果写到
+stdout。stage 都放在 registry 里，新增一个 stage 只需注册一个函数，引擎
+本身无需改动。
 
 ```console
 $ printf 'banana\nApple\nbanana\n' | go run ./flow -steps 'sort,uniq,upper'
@@ -12,7 +12,7 @@ APPLE
 BANANA
 ```
 
-## Usage
+## 用法
 
 ```console
 $ printf '  alice \n  bob\n' | go run ./flow -steps 'trim,upper,prefix:- '
@@ -33,40 +33,39 @@ jumps over the lazy
 dog
 ```
 
-List every registered stage:
+列出所有已注册的 stage：
 
 ```console
 $ go run ./flow -list
 ```
 
-Stage specs are comma-separated. The first colon separates the stage name
-from its argument, and the argument is passed through untouched, so
-`prefix:> ` keeps its trailing space when quoted. Because commas separate
-stages, a stage argument cannot contain a comma.
+stage 之间用逗号分隔。第一个冒号把 stage 名称和参数分开，参数会原样
+传递，所以给 `prefix:> ` 加上引号时，末尾空格会保留。由于逗号用于分隔
+stage，参数中不能包含逗号。
 
-## Built-in stages
+## 内置 stage
 
-| Stage | Argument | Effect |
+| Stage | 参数 | 作用 |
 | --- | --- | --- |
-| `upper` / `lower` | — | Change case. |
-| `trim` | — | Trim leading and trailing whitespace. |
-| `reverse` | — | Reverse the runes of each line. |
-| `prefix` / `suffix` | `TEXT` | Add text before or after each line. |
-| `replace` | `OLD:NEW` | Replace every `OLD` with `NEW`; `NEW` may contain colons. |
-| `number` | `[SEP]` | Prefix line numbers, default separator `": "`. |
-| `grep` / `drop` | `TEXT` | Keep only lines containing `TEXT`, or remove them. |
-| `field` | `N:SEP` | Keep 1-based field `N` after splitting on `SEP`. |
-| `sort` / `rsort` | — | Sort lines ascending or descending. |
-| `uniq` | — | Drop duplicate lines, keeping first-seen order. |
-| `head` / `tail` | `N` | Keep the first or last `N` lines. |
-| `wrap` | `N` | Wrap each line at `N` runes on spaces, without splitting words. |
-| `join` | `SEP` | Join all lines into a single line. |
-| `rot13` | — | Custom stage defined in `custom.go`. |
+| `upper` / `lower` | — | 转换大小写。 |
+| `trim` | — | 去掉行首和行尾空白。 |
+| `reverse` | — | 反转每行的 rune 顺序。 |
+| `prefix` / `suffix` | `TEXT` | 在每行前后追加文本。 |
+| `replace` | `OLD:NEW` | 将所有 `OLD` 替换为 `NEW`；`NEW` 可以包含冒号。 |
+| `number` | `[SEP]` | 添加行号，默认分隔符为 `": "`。 |
+| `grep` / `drop` | `TEXT` | 只保留包含 `TEXT` 的行，或删除这些行。 |
+| `field` | `N:SEP` | 按 `SEP` 分割后保留第 `N` 列（从 1 开始）。 |
+| `sort` / `rsort` | — | 按升序或降序排列行。 |
+| `uniq` | — | 去重并保留首次出现的顺序。 |
+| `head` / `tail` | `N` | 保留前 `N` 行或后 `N` 行。 |
+| `wrap` | `N` | 按空格在 `N` 个 rune 处换行，不拆单词。 |
+| `join` | `SEP` | 用 `SEP` 把所有行合并为一行。 |
+| `rot13` | — | `custom.go` 中的自定义 stage 示例。 |
 
-## Extending it
+## 扩展方式
 
-`custom.go` is the extension template. The `rot13` stage is registered from
-`init`, so it exists for every pipeline without any engine change:
+`custom.go` 是扩展示例。`rot13` stage 在 `init` 中注册，因此无需改动引擎
+就能用于所有流水线：
 
 ```go
 func init() {
@@ -74,7 +73,7 @@ func init() {
 }
 ```
 
-A stage with an argument builds a `Stage` from the raw argument instead:
+带参数的 stage 则从原始参数字符串构造 `Stage`：
 
 ```go
 func init() {
@@ -92,23 +91,21 @@ func repeatStep(arg string) (Stage, error) {
 }
 ```
 
-`Simple` adapts an argument-free `func(string) string`; `PerLine` adapts a
-single-line transform. A stage may also work on the whole stream of lines
-(`sort`, `uniq`, `head`, `wrap` do), which is how one interface covers both
-line filters and reordering.
+`Simple` 用于适配无参的 `func(string) string`，`PerLine` 用于适配单行
+变换。stage 也可以直接处理整个行流（`sort`、`uniq`、`head`、`wrap`
+就是这样），因此同一个接口既能完成逐行过滤，也能完成重排。
 
-Add the stage to `steps.go` or a new file, then run `go run ./flow -list` to
-confirm it is registered.
+把新 stage 加到 `steps.go` 或新文件中，再运行 `go run ./flow -list`
+确认注册成功。
 
-## Design
+## 设计
 
-- `Registry` maps stage names to `Definition` functions.
-- `Compile` resolves a list of specs once; `Pipeline.Run` applies the stages.
-- Duplicate or invalid registrations fail fast instead of silently replacing
-  a stage.
-- Errors include the step index and, for line stages, the failing line number.
+- `Registry` 把 stage 名称映射到 `Definition` 函数。
+- `Compile` 一次性解析 spec 列表；`Pipeline.Run` 依次应用各个 stage。
+- 重复、非法或为 nil 的注册会立即报错，不会静默覆盖已有 stage。
+- 错误信息包含 stage 序号；逐行 stage 还会包含出错的行号。
 
-## Tests
+## 测试
 
 ```console
 $ go test ./...
